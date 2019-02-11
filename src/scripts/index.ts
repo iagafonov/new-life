@@ -1,17 +1,19 @@
 import '../assets/styles/index.scss'
-import { createVertexBuffer, createProgram, VertexBuffer, Program } from './webgl-utils'
+import { createVertexBuffer, createProgram, createTexture, VertexBuffer, Program, Texture } from './webgl-utils'
 
 const vShader = require('../shaders/vshader.glsl')
 const fShader = require('../shaders/fshader.glsl')
 
-const canvas = document.createElement('canvas')
+const canvas: HTMLCanvasElement = document.createElement('canvas')
 document.body.appendChild(canvas)
-const gl = canvas.getContext('webgl')
-if (gl == null) {
+const ctx = canvas.getContext('webgl')
+if (ctx == null) {
   const msg = 'WebGL is not supperted by your system'
   document.body.innerText = msg
   throw new Error(msg)
 }
+const gl: WebGLRenderingContext = ctx
+;(window as any).gl = gl
 
 let dWidth: number
 let dHeight: number
@@ -28,11 +30,23 @@ window.addEventListener('resize', resize)
 let program: Program
 let squareVertices: VertexBuffer
 let vertexPositionAttribute: number
+let viewTexture: Texture
 
 const init = () => {
   gl.clearColor(0.0, 0.06, 0.1, 1.0)
-  gl.enable(gl.DEPTH_TEST)
-  gl.depthFunc(gl.LEQUAL)
+}
+
+const initTextures = () => {
+  viewTexture = createTexture(gl, dWidth, dHeight)
+}
+
+const initBuffers = () => {
+  squareVertices = createVertexBuffer(gl, [
+    0, 0,
+    0, dHeight,
+    dWidth, 0,
+    dWidth, dHeight
+  ])
 }
 
 const initShaders = () => {
@@ -41,14 +55,6 @@ const initShaders = () => {
   gl.uniform2f(gl.getUniformLocation(program.prg, 'uViewport'), dWidth, dHeight)
   vertexPositionAttribute = gl.getAttribLocation(program.prg, 'aVertexPosition')
   gl.enableVertexAttribArray(vertexPositionAttribute)
-}
-
-const initBuffers = () => {
-  squareVertices = createVertexBuffer(gl, [
-    0, 200,
-    200, 500,
-    200, 0
-  ])
 }
 
 const draw = () => {
@@ -61,5 +67,6 @@ const draw = () => {
 
 init()
 initBuffers()
+initTextures()
 initShaders()
 requestAnimationFrame(draw)
