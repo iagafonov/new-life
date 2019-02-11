@@ -42,6 +42,7 @@ export function createProgram (gl: WebGLRenderingContext, vSource: string, fSour
   gl.attachShader(program, fShader)
   gl.linkProgram(program)
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    gl.deleteProgram(program)
     throw new Error('Shader linkage error: ' + gl.getProgramInfoLog(program))
   }
   return new Program(program, vSource, fSource)
@@ -68,13 +69,13 @@ export class VertexBuffer {
   }
 }
 
-export function createVertexBuffer (gl: WebGLRenderingContext, vertices: Array<number>): VertexBuffer {
+export function createVertexBuffer (gl: WebGLRenderingContext, vertices: Float32Array): VertexBuffer {
   const buf = gl.createBuffer()
   if (buf == null) {
     throw new Error('Can not create buffer')
   }
   gl.bindBuffer(gl.ARRAY_BUFFER, buf)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW)
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
   return new VertexBuffer(buf, vertices.length)
 }
 
@@ -91,11 +92,16 @@ export function createTexture (gl: WebGLRenderingContext, width: number, height:
   if (tex == null) {
     throw new Error('Can not create texture')
   }
+  const len = width * height
+  const array = new Uint8Array(len * 3)
+  for (let i = 0; i < len; i++) {
+    array[i] = Math.ceil(Math.random() * 256)
+  }
   gl.bindTexture(gl.TEXTURE_2D, tex)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array(width * height * 3))
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, array)
   gl.bindTexture(gl.TEXTURE_2D, null)
   return new Texture(tex)
 }

@@ -27,8 +27,10 @@ const resize = () => {
 }
 resize()
 window.addEventListener('resize', resize)
+
 let program: Program
 let squareVertices: VertexBuffer
+let squareTextureCoordinates: VertexBuffer
 let vertexPositionAttribute: number
 let viewTexture: Texture
 
@@ -37,31 +39,44 @@ const init = () => {
 }
 
 const initTextures = () => {
-  viewTexture = createTexture(gl, dWidth, dHeight)
+  viewTexture = createTexture(gl, 800, 600)
 }
 
 const initBuffers = () => {
-  squareVertices = createVertexBuffer(gl, [
-    0, 0,
-    0, dHeight,
-    dWidth, 0,
-    dWidth, dHeight
-  ])
+  squareVertices = createVertexBuffer(gl, new Float32Array([
+    0, 0, // left, bottom
+    0, dHeight, // left, top
+    dWidth, 0, // right, bottom
+    dWidth, dHeight // right, top
+  ]))
+  squareTextureCoordinates = createVertexBuffer(gl, new Float32Array([
+    0.0, 0.0,
+    1.0, 0.0,
+    0.0, 1.0,
+    0.0, 1.0,
+    1.0, 0.0,
+    1.0, 1.0
+  ]))
 }
 
 const initShaders = () => {
   program = createProgram(gl, vShader, fShader)
   gl.useProgram(program.prg)
+
   gl.uniform2f(gl.getUniformLocation(program.prg, 'uViewport'), dWidth, dHeight)
+
   vertexPositionAttribute = gl.getAttribLocation(program.prg, 'aVertexPosition')
   gl.enableVertexAttribArray(vertexPositionAttribute)
+  gl.vertexAttribPointer(vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0)
+
+  const textureCoordinateAttribute = gl.getAttribLocation(program.prg, 'aTextureCoordinate')
+  gl.enableVertexAttribArray(textureCoordinateAttribute)
+  gl.vertexAttribPointer(textureCoordinateAttribute, 2, gl.FLOAT, false, 0, 0)
 }
 
 const draw = () => {
   requestAnimationFrame(draw)
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-  gl.bindBuffer(gl.ARRAY_BUFFER, squareVertices.buf)
-  gl.vertexAttribPointer(vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0)
+  gl.clear(gl.COLOR_BUFFER_BIT)
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, squareVertices.len / 2)
 }
 
