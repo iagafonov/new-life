@@ -22,7 +22,8 @@
   },
   "homepage": "https://github.com/iagafonov/new-life#readme",
   "dependencies": {
-    "@types/node": "^10.5.4"
+    "@types/node": "^10.5.4",
+    "twgl.js": "^4.8.2"
   },
   "devDependencies": {
     "css-loader": "^1.0.0",

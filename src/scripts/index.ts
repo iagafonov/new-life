@@ -1,5 +1,5 @@
 import '../assets/styles/index.scss'
-import {createVertexBuffer, createProgram, createTexture, VertexBuffer, Program, Texture} from './webgl-utils'
+import { BufferInfo, ProgramInfo, createProgramInfo, createBufferInfoFromArrays, setBuffersAndAttributes, setUniforms, drawBufferInfo, createTexture, setTextureFromArray } from 'twgl.js'
 
 const vShader = require('../shaders/vshader.glsl')
 const fShader = require('../shaders/fshader.glsl')
@@ -8,7 +8,7 @@ const canvas: HTMLCanvasElement = document.createElement('canvas')
 document.body.appendChild(canvas)
 const ctx = canvas.getContext('webgl')
 if (ctx == null) {
-  const msg = 'WebGL is not supperted by your system'
+  const msg = 'WebGL is not supported by your system'
   document.body.innerText = msg
   throw new Error(msg)
 }
@@ -17,9 +17,6 @@ const gl: WebGLRenderingContext = ctx
 
 let documentWidth: number
 let documentHeight: number
-
-const matrixWidth = 1 << 10
-const matrixHeight = 1 << 9
 
 const resize = () => {
   documentWidth = document.body.clientWidth
@@ -31,25 +28,34 @@ const resize = () => {
 resize()
 window.addEventListener('resize', resize)
 
-let program: Program
-let squareVertices: VertexBuffer
-let squareTextureCoordinates: VertexBuffer
-let vertexPositionAttribute: number
-let viewTexture: Texture
+const genMatrix = (width: number, height: number): Uint8Array => {
+  const len = width * height
+  const arr = new Uint8Array(len * 3)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (x + y * width) * 3
+      arr[i] = (x / width) * 256
+      arr[i + 1] = (y / height) * 256
+      arr[i + 2] = (1 - (x / width)) * 256
+    }
+  }
+  return arr
+}
+
+let programInfo: ProgramInfo
+let bufferInfo: BufferInfo
+
+const matrixWidth = 1 << 10
+const matrixHeight = 1 << 9
+
+const matrixArray = genMatrix(matrixWidth, matrixHeight)
+let matrixTexture: WebGLTexture
 
 const init = () => {
   gl.clearColor(0.0, 0.06, 0.1, 1.0)
-}
 
-const initTextures = () => {
-  viewTexture = createTexture(gl, matrixWidth, matrixHeight)
-}
-
-const initShaders = () => {
-  program = createProgram(gl, vShader, fShader)
-  gl.useProgram(program.prg)
-
-  gl.uniform2f(gl.getUniformLocation(program.prg, 'uViewport'), documentWidth, documentHeight)
+  programInfo = createProgramInfo(gl, [vShader, fShader])
+  gl.useProgram(programInfo.program)
 
   const dWidth = documentWidth - matrixWidth
   const dHeight = documentHeight - matrixHeight
@@ -59,27 +65,39 @@ const initShaders = () => {
   const y0 = Math.round(dHeight / 2)
   const y1 = y0 + matrixHeight
 
-  squareVertices = createVertexBuffer(gl, new Float32Array([
-    x0, y0,
-    x0, y1,
-    x1, y0,
-    x1, y1
-  ]))
+  bufferInfo = createBufferInfoFromArrays(gl, {
+    aVertexPosition: {
+      numComponents: 2,
+      data: new Float32Array([
+        x0, y0,
+        x0, y1,
+        x1, y0,
+        x1, y1
+      ])
+    },
+    aTextureCoordinate: {
+      numComponents: 2,
+      data: new Float32Array([
+        0.0, 0.0,
+        0.0, 1.0,
+        1.0, 0.0,
+        1.0, 1.0
+      ])
+    }
+  })
 
-  vertexPositionAttribute = gl.getAttribLocation(program.prg, 'aVertexPosition')
-  gl.enableVertexAttribArray(vertexPositionAttribute)
-  gl.vertexAttribPointer(vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0)
+  matrixTexture = createTexture(gl, {
+    format: gl.RGB,
+    src: genMatrix(matrixWidth, matrixHeight),
+    width: matrixWidth,
+    height: matrixHeight
+  })
 
-  squareTextureCoordinates = createVertexBuffer(gl, new Float32Array([
-    0.0, 0.0,
-    0.0, 1.0,
-    1.0, 0.0,
-    1.0, 1.0
-  ]))
-
-  const textureCoordinateAttribute = gl.getAttribLocation(program.prg, 'aTextureCoordinate')
-  gl.enableVertexAttribArray(textureCoordinateAttribute)
-  gl.vertexAttribPointer(textureCoordinateAttribute, 2, gl.FLOAT, false, 0, 0)
+  setBuffersAndAttributes(gl, programInfo, bufferInfo)
+  setUniforms(programInfo, {
+    uImage: matrixTexture,
+    uViewport: [documentWidth, documentHeight]
+  })
 }
 
 const draw = () => {
@@ -87,13 +105,15 @@ const draw = () => {
   gl.clear(gl.COLOR_BUFFER_BIT)
   const len = 100
   for (let i = 0; i < len; ++i) {
-    viewTexture.arr[Math.ceil(Math.random() * matrixHeight * matrixWidth * 3)] = Math.ceil(Math.random() * 256)
+    matrixArray[Math.ceil(Math.random() * matrixHeight * matrixWidth * 3)] = Math.ceil(Math.random() * 256)
   }
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, viewTexture.width, viewTexture.height, 0, gl.RGB, gl.UNSIGNED_BYTE, viewTexture.arr)
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, squareVertices.len / 2)
+  setTextureFromArray(gl, matrixTexture, matrixArray, {
+    format: gl.RGB,
+    width: matrixWidth,
+    height: matrixHeight
+  })
+  drawBufferInfo(gl, bufferInfo, gl.TRIANGLE_STRIP)
 }
 
 init()
-initTextures()
-initShaders()
 requestAnimationFrame(draw)
